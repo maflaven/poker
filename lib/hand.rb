@@ -1,3 +1,5 @@
+require_relative 'card.rb'
+
 class Hand
 
   HAND_VALUE = {
@@ -9,19 +11,40 @@ class Hand
     three_kind: 3,
     two_pair: 2,
     one_pair: 1,
-    high_hand: 0
+    high_card: 0
   }
+
+  attr_accessor :cards
 
   def initialize(cards = [])
     @cards = cards
   end
 
-
+  # currently only ties hands with same value.
+  # future version should use type data for tiebreakers
   def self.compare(*hands)
+    hands_type_value = {}
+
+    hands.each do |hand|
+      hands_type_value[hand] = hand.value(hand.type)
+    end
+
+    hands_by_value = hands_type_value.sort_by { |hand, value| value }
+
+    highest_value = hands_by_value.last[1]
+
+    winners = hands_by_value.select { |hand, value| value == highest_value }
+
+    winners.map! { |hand| hand[0] }
   end
 
+  def render
+    render = []
 
-  private
+    cards.each { |card| render << card.render }
+
+    render
+  end
 
   def type
     # if straight_flush
@@ -31,75 +54,112 @@ class Hand
     end
   end
 
-  def hand_value(type)
-    HAND_VALUE[type]
+  def value(type)
+    HAND_VALUE[type.first]
   end
 
-  def high_hand
-    sort.pop
-  end
-
-  def one_pair
-    highest_pair_value = 0
-
-    (0...(cards.length - 1)).each do |i|
-      ((i + 1)...cards.length).each do |j|
-        if cards[i] == cards[j] && cards[i] > highest_pair_value
-          highest_pair_value = cards[i]
-        end
-      end
-    end
-
-    return highest_pair_value if highest_pair_value > 0
-
-    nil
-  end
-
-  def two_pair
-    pair_values = []
-
-    (0...(cards.length - 1)).each do |i|
-      ((i + 1)...cards.length).each do |j|
-        highest_pair_value << cards[i] if cards[i] == cards[j]
-      end
-    end
-
-    pair_values.sort!
-
-    return pair_values.last if pair_values.count == 2
-
-    nil
-  end
-
-  def three_kind
-    pair_values = Hash.new { |h, k| h[k] = 0 }
-
-    each { |card| pair_values[card] += 1 }
-
-  end
-
-  def straight
-
-  end
-
-  def flush
-
-  end
-
-  def full_house
-
-  end
-
-  def four_kind
-
-  end
-
-  def straight_flush
-
-  end
+  private
 
   def self.all_hand_types
     HAND_VALUE.keys
+  end
+
+  def high_card
+    card_face_values = cards.map { |card| Card.value_face(card.face) }.sort
+
+    Card.face(card_face_values.pop)
+  end
+
+  def one_pair
+    card_face_counts = Hash.new { |h, k| h[k] = 0 }
+
+    cards.each { |card| card_face_counts[card.face] += 1 }
+
+    card_face_counts.select! { |face, count| count == 2 }
+
+    card_face_counts.keys.first
+  end
+
+  def two_pair
+    card_face_counts = Hash.new { |h, k| h[k] = 0 }
+
+    cards.each { |card| card_face_counts[card.face] += 1 }
+
+    card_face_counts.select! { |face, count| count == 2 }
+
+    if card_face_counts.keys.count < 2
+      return nil
+    end
+
+    val = card_face_counts.keys.map! { |face| Card.value_face(face) }.sort!.pop
+
+    return Card.face(val)
+  end
+
+  def three_kind
+    card_face_counts = Hash.new { |h, k| h[k] = 0 }
+
+    cards.each { |card| card_face_counts[card.face] += 1 }
+
+    card_face_counts.select! { |face, count| count == 3 }
+
+    card_face_counts.keys.first
+  end
+
+  def straight
+    card_face_values = cards.map { |card| Card.value_face(card.face) }
+
+    card_face_values.sort!
+
+    straight = true
+
+    (0...(card_face_values.count - 1)).each do |i|
+      straight = false if card_face_values[i] != (card_face_values[i + 1] - 1)
+    end
+
+    return Card.face(card_face_values.pop) if straight
+
+    nil
+  end
+
+  def flush
+    card_suit_counts = Hash.new { |h, k| h[k] = 0 }
+
+    cards.each { |card| card_suit_counts[card.suit] += 1 }
+
+    card_suit_counts.select! { |suit, count| count == 5 }
+
+    card_suit_counts.keys.first
+  end
+
+  def full_house
+    card_face_counts = Hash.new { |h, k| h[k] = 0 }
+
+    cards.each { |card| card_face_counts[card.face] += 1 }
+
+    card_face_counts.select! { |face, count| count >= 2 }
+
+    if card_face_counts.count == 2
+      return card_face_counts.select { |suit, count| count == 3 }.keys.first
+    end
+
+    nil
+  end
+
+  def four_kind
+    card_face_counts = Hash.new { |h, k| h[k] = 0 }
+
+    cards.each { |card| card_face_counts[card.face] += 1 }
+
+    card_face_counts.select! { |face, count| count == 4 }
+
+    card_face_counts.keys.first
+  end
+
+  def straight_flush
+    return straight if straight && flush
+
+    nil
   end
 
 

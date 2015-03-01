@@ -33,6 +33,14 @@ class Card
     VALUE_HASH[face]
   end
 
+  def self.value_face(face)
+    VALUE_HASH[face]
+  end
+
+  def self.face(value)
+    VALUE_HASH.key(value)
+  end
+
   def self.all_faces
     VALUE_HASH.keys
   end
